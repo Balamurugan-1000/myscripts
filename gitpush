@@ -10,6 +10,11 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 1
 fi
 
+# 👤 Show current Git identity
+echo -e "\n👤 \033[1;33mGit Identity:\033[0m"
+echo -e "   Name : \033[1;36m$(git config user.name)\033[0m"
+echo -e "   Email: \033[1;36m$(git config user.email)\033[0m"
+
 # Get current branch name
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
