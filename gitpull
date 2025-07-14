@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# ~/.scripts/gitpull
+
+set -e
+
+# Get current branch
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+echo "🔄 You are currently on branch: $current_branch"
+
+# Ask where to pull from (default: main)
+read -rp "📥 Pull from which branch? (default: main): " pull_branch
+pull_branch="${pull_branch:-main}" # Use input or fallback to 'main'
+
+# Check for uncommitted changes
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "📦 Uncommitted changes detected. Stashing them..."
+  git add .
+  git stash push -m "Auto-stash before pull"
+  stash_applied=true
+else
+  stash_applied=false
+fi
+
+# Pull from selected branch
+echo "⬇️ Pulling latest changes from origin/$pull_branch..."
+if ! git pull origin "$pull_branch"; then
+  echo "❌ Git pull failed!"
+  exit 1
+fi
+
+# Reapply stash if needed
+if [ "$stash_applied" = true ]; then
+  echo "🔁 Reapplying stashed changes..."
+  if ! git stash pop; then
+    echo -e "⚠️ Merge conflict occurred while applying your stash.\n"
+    echo "🔍 Conflicted files:"
+    git diff --name-only --diff-filter=U
+    echo -e "\n💡 Resolve the conflicts manually, then run:"
+    echo "   git add <file> && git commit"
+    exit 1
+  fi
+fi
+
+echo "✅ Code is up to date, and your changes are reapplied!"

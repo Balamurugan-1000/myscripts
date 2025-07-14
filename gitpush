@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# ~/.scripts/gitpush
+
+set -e
+
+# Check if inside a Git repository
+if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "❌ Not inside a Git repository."
+  exit 1
+fi
+
+# Get current branch name
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+echo -e "\n📌 \033[1;35mCurrent branch:\033[0m $current_branch"
+read -rp "🧠 Are you sure you want to push to this branch? [y/N]: " confirm
+if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+  echo "❌ Push cancelled."
+  exit 0
+fi
+
+# Fetch remote and compare with local
+echo -e "\n🔄 Checking remote branch..."
+git fetch origin "$current_branch" >/dev/null 2>&1
+
+LOCAL=$(git rev-parse "$current_branch")
+REMOTE=$(git rev-parse "origin/$current_branch")
+DIRTY=$(git status --porcelain)
+
+if [[ "$LOCAL" == "$REMOTE" && -z "$DIRTY" ]]; then
+  echo "✅ Already up-to-date with origin/$current_branch. Nothing to commit or push."
+  exit 0
+fi
+
+# Show Git status
+echo -e "\n🔍 \033[1;36mGit Status:\033[0m"
+git status
+
+# Prompt to add files
+echo ""
+echo "📦 What would you like to add?"
+echo "1) All changes (git add .)"
+echo "2) Pick files manually"
+echo "3) Exit"
+read -rp "Choose [1/2/3]: " choice
+
+case "$choice" in
+1)
+  git add .
+  ;;
+2)
+  echo ""
+  echo -e "\033[1;34mModified files:\033[0m"
+  git status --short
+  echo ""
+  read -rp "Enter files to add (space-separated): " files
+  git add $files
+  ;;
+3)
+  echo "❌ Cancelled."
+  exit 0
+  ;;
+*)
+  echo "❌ Invalid choice."
+  exit 1
+  ;;
+esac
+
+# Commit message
+echo ""
+read -rp "📝 Commit message: " msg
+if [[ -z "$msg" ]]; then
+  echo "❌ Commit message can't be empty!"
+  exit 1
+fi
+
+git commit -m "$msg"
+
+# Push to branch
+echo ""
+echo "🚀 Pushing to origin/$current_branch..."
+git push origin "$current_branch"

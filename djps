@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# ~/.scripts/openproject
+set -e
+
+PROJECT_PATH="$PWD"
+PROJECT_NAME="$(basename "$PROJECT_PATH")"
+SESSION_NAME="proj_$PROJECT_NAME"
+
+# Ensure the virtual environment exists
+if [ ! -d "env" ]; then
+  echo "❌ No virtualenv found at ./env"
+  exit 2
+fi
+
+# Attach if session already exists
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+  echo "🔁 Attaching to existing tmux session: $SESSION_NAME"
+  tmux attach -t "$SESSION_NAME"
+  exit 1
+fi
+
+echo "🚀 Creating new tmux session: $SESSION_NAME"
+
+# Create session in project directory
+tmux new-session -d -s "$SESSION_NAME" -c "$PROJECT_PATH"
+
+# Window 1: code (Neovim)
+tmux rename-window -t "$SESSION_NAME:1" "code"
+tmux send-keys -t "$SESSION_NAME:1" "source env/bin/activate && nvim" C-m
+
+# Window 2: server (split pane)
+tmux new-window -t "$SESSION_NAME:2" -n "server" -c "$PROJECT_PATH"
+tmux send-keys -t "$SESSION_NAME:2.1" "source env/bin/activate && python manage.py runserver 0.0.0.0:8000" C-m
+tmux split-window -h -t "$SESSION_NAME:2" -c "$PROJECT_PATH"
+tmux send-keys -t "$SESSION_NAME:2.2" "source env/bin/activate" C-m
+
+# Window 3: Python shell
+tmux new-window -t "$SESSION_NAME:3" -n "shell" -c "$PROJECT_PATH"
+tmux send-keys -t "$SESSION_NAME:3" "source env/bin/activate && python" C-m
+
+# ✅ Window 4: utils (in home directory)
+tmux new-window -t "$SESSION_NAME:4" -n "utils" -c "$HOME"
+
+# Return to code window
+tmux select-window -t "$SESSION_NAME:1"
+
+# Attach to session
+tmux attach -t "$SESSION_NAME"
